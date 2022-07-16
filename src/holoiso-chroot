@@ -4,21 +4,19 @@
 # Define mountpoint
 MOUNT_DIR=/tmp/mount
 
-# Re-mount stuff before proceeding
-sudo umount -l ${MOUNT_DIR}
-sudo umount -l ${MOUNT_DIR}/home
-sudo umount -l ${MOUNT_DIR}/boot/efi
-
-# Remove directory itself
-rm ${MOUNT_DIR}
-
 # Detect holo partitions
 ROOTPART=$(sudo blkid | grep holo-root | cut -d ':' -f 1 | head -n 1)
 HOMEPART=$(sudo blkid | grep holo-home | cut -d ':' -f 1 | head -n 1)
 EFIPART=$(sudo blkid | grep HOLOEFI | cut -d ':' -f 1 | head -n 1)
 
+# Re-mount stuff before proceeding
+CHK_MNT=$(lsblk | grep -e ${MOUNT_DIR} -e /mnt)
+if [ -n "${CHK_MNT}" ]; then
+	sudo umount -l ${ROOTPART} 2>&1
+fi
+
 # Create an mountpoint
-sudo mkdir ${MOUNT_DIR}
+sudo mkdir -p ${MOUNT_DIR}
 
 # Inform user about partition location
 echo "Your HoloISO EFI Partition is located in ${EFIPART} partition."
