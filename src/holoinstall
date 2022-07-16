@@ -95,9 +95,8 @@ xargs -0 zenity --list --width=600 --height=512 --title="Select disk" --text="Se
 		echo "\nNote: If you wish to preform partition install.\nPlease specify the disk drive node first then select \"2\" for partition install."
 		exit 1
 	fi
-	
-	echo "1) Erase your drive\n2) Install alongside existing OS/Partition\nType 1 or 2: "
-	read "?Your choice is: " install
+	echo "\nChoose your partitioning type:"
+	install=$(zenity --list --title="Choose your installation type:" --column="Type" --column="Name" 1 "Erase entire drive" \2 "Install alongside existing OS/Partition (Requires at least 50 GB of free space from the end)"  --width=700 --height=220)
 
 	case $install in
 		1)
@@ -105,58 +104,39 @@ xargs -0 zenity --list --width=600 --height=512 --title="Select disk" --text="Se
 			# Umount twice to fully umount the broken install of steam os 3 before installing.
 			umount $INSTALLDEVICE* > /dev/null 2>&1
 			umount $INSTALLDEVICE* > /dev/null 2>&1
-			echo "\n\nWARNING: The following drive is going to be erased fully. ALL DATA ON DRIVE $DEVICE WILL BE LOST!\n"
-			lsblk -o NAME,MAJ:MIN,RM,SIZE,RO,TYPE,VENDOR,MODEL,SERIAL,MOUNTPOINT $DEVICE
-			echo -n "\nErase $DEVICE and begin installation(y/n): "
-			read ANS
-			case $ANS in
-				y | Y)
-					echo "\nWiping partitions..."
-					sfdisk --delete ${DEVICE}
-					wipefs -a ${DEVICE}
-					echo "\nCreating new gpt partitions..."
-					parted ${DEVICE} mklabel gpt
-					;;
-				n | N)
-					echo "\nNothing has been written.\nYou canceled the destructive install, please try again"
-					exit 1
-					;;
-				*)
-					echo "\nInvalid options.\nNothing has been written.\nYou canceled the destructive install, please try again"
-					exit 1
-					;;
-			esac
+			if zenity --question --text "WARNING: The following drive is going to be erased fully. ALL DATA ON DRIVE /dev/sda WILL BE LOST! \n\n$(lsblk -o NAME,MAJ:MIN,RM,SIZE,RO,TYPE,VENDOR,MODEL,SERIAL,MOUNTPOINT /dev/sda | sed "1d")\n\nErase /dev/sda and begin installation?" --width=700
+			then
+				echo "\nWiping partitions..."
+				sfdisk --delete ${DEVICE}
+				wipefs -a ${DEVICE}
+				echo "\nCreating new gpt partitions..."
+				parted ${DEVICE} mklabel gpt
+			else
+				echo "\nNothing has been written.\nYou canceled the destructive install, please try again"
+				echo 'Press any key to exit...'; read -k1 -s
+				exit 1
 			;;
 		2)
 			echo "\nHoloISO will be installed alongside existing OS/Partition.\nPlease make sure there are more than 24 GB on the >>END<< of free(unallocate) space available\n"
 			parted $DEVICE print free
-			echo "HoloISO will be installed on the following free(unallocate) space.\n"
+			echo "HoloISO will be installed on the following free (unallocated) space.\n"
 			parted $DEVICE print free | tail -n2 | grep "Free Space"
 			if [ $? != 0 ]; then
 				echo "Error! No Free Space found on the end of the disk.\nNothing has been written.\nYou canceled the non-destructive install, please try again"
 				exit 1
+				echo 'Press any key to exit...'; read -k1 -s
 			fi
-			echo -n "\nDoes this look reasonable(y/n): "
-			read ANS
-			case $ANS in
-				y | Y)
-					echo "\nBeginning installation..."
-					;;
-				n | N)
-					echo "\nNothing has been written.\nYou canceled the non-destructive install, please try again"
-					exit 1
-					;;
-				*)
-					echo "\nInvalid options.\nNothing has been written.\nYou canceled the non-destructive install, please try again"
-					exit 1
-					;;
-			esac		
+
+			if zenity --question --text "HoloISO will be installed on the following free (unallocated) space.\nDoes this look reasonable?\n$(sudo parted /dev/sda print free | tail -n2 | grep "Free Space")" --width=500
+			then
+        		echo "\nBeginning installation..."
+			else
+				echo "\nNothing has been written.\nYou canceled the non-destructive install, please try again"
+				echo 'Press any key to exit...'; read -k1 -s
+				exit 1
+        	fi
 			;;
-		*)
-			echo "Invalid options.\nNothing has been written. please try again"
-			exit 1
-			;;
-	esac
+		esac
 
 	numPartitions=$(grep -c ${DRIVEDEVICE}'[0-9]' /proc/partitions)
 	
@@ -198,6 +178,7 @@ xargs -0 zenity --list --width=600 --height=512 --title="Select disk" --text="Se
 	if [ $efiEnd -gt $realDiskSpace ]; then
 		echo "Not enough space available, please choose another disk and try again"
 		exit 1
+		echo 'Press any key to exit...'; read -k1 -s
 	fi
 
 	echo "\nCreating partitions..."
