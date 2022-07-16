@@ -104,7 +104,7 @@ xargs -0 zenity --list --width=600 --height=512 --title="Select disk" --text="Se
 			# Umount twice to fully umount the broken install of steam os 3 before installing.
 			umount $INSTALLDEVICE* > /dev/null 2>&1
 			umount $INSTALLDEVICE* > /dev/null 2>&1
-			if zenity --question --text "WARNING: The following drive is going to be erased fully. ALL DATA ON DRIVE /dev/sda WILL BE LOST! \n\n$(lsblk -o NAME,MAJ:MIN,RM,SIZE,RO,TYPE,VENDOR,MODEL,SERIAL,MOUNTPOINT /dev/sda | sed "1d")\n\nErase /dev/sda and begin installation?" --width=700
+			if zenity --question --text "WARNING: The following drive is going to be erased fully. ALL DATA ON DRIVE ${DEVICE} WILL BE LOST! \n\n$(lsblk -o NAME,MAJ:MIN,RM,SIZE,RO,TYPE,VENDOR,MODEL,SERIAL,MOUNTPOINT ${DEVICE} | sed "1d")\n\nErase ${DEVICE} and begin installation?" --width=700
 			then
 				echo "\nWiping partitions..."
 				sfdisk --delete ${DEVICE}
@@ -115,6 +115,7 @@ xargs -0 zenity --list --width=600 --height=512 --title="Select disk" --text="Se
 				echo "\nNothing has been written.\nYou canceled the destructive install, please try again"
 				echo 'Press any key to exit...'; read -k1 -s
 				exit 1
+			fi
 			;;
 		2)
 			echo "\nHoloISO will be installed alongside existing OS/Partition.\nPlease make sure there are more than 24 GB on the >>END<< of free(unallocate) space available\n"
@@ -127,14 +128,14 @@ xargs -0 zenity --list --width=600 --height=512 --title="Select disk" --text="Se
 				echo 'Press any key to exit...'; read -k1 -s
 			fi
 
-			if zenity --question --text "HoloISO will be installed on the following free (unallocated) space.\nDoes this look reasonable?\n$(sudo parted /dev/sda print free | tail -n2 | grep "Free Space")" --width=500
+			if zenity --question --text "HoloISO will be installed on the following free (unallocated) space.\nDoes this look reasonable?\n$(sudo parted ${DEVICE} print free | tail -n2 | grep "Free Space")" --width=500
 			then
         		echo "\nBeginning installation..."
 			else
 				echo "\nNothing has been written.\nYou canceled the non-destructive install, please try again"
 				echo 'Press any key to exit...'; read -k1 -s
 				exit 1
-        	fi
+        		fi
 			;;
 		esac
 
