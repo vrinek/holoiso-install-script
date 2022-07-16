@@ -1,6 +1,6 @@
-pkgname=holoiso-install-script
+pkgname=holoiso-install-script-gui
 pkgver="snapshot$(date +%Y%m%d.%H%M)"
-pkgdesc="HoloISO installer scripts"
+pkgdesc="HoloISO installer scripts (GUI/Beta)"
 pkgrel="1"
 depends=('arch-install-scripts')
 arch=("x86_64")

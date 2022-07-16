@@ -75,8 +75,11 @@ check_download(){
 }
 
 partitioning(){
-	lsblk -o NAME,MAJ:MIN,RM,SIZE,RO,TYPE,VENDOR,MODEL,SERIAL,MOUNTPOINT
-	read "?Enter your desired drive node here (for example, sda or nvme0n1): " DRIVEDEVICE
+	echo "Select your drive in popup:"
+
+	DRIVEDEVICE=$(lsblk -d -o NAME | sed "1d" | awk '{ printf "FALSE""\0"$0"\0" }' | \
+xargs -0 zenity --list --width=600 --height=512 --title="Select disk" --text="Select your disk to install HoloISO in below:\n\n $(lsblk -d -o NAME,MAJ:MIN,RM,SIZE,RO,TYPE,VENDOR,MODEL,SERIAL,MOUNTPOINT)" \
+--radiolist --multiple --column ' ' --column 'Disks')
 	
 	DEVICE="/dev/${DRIVEDEVICE}"
 	
@@ -361,11 +364,11 @@ full_install() {
 	while true
 	do
 	   	echo "Please choose your current GPU:"
-	    	echo "1) AMD: Will install Gamescope with Mangohud and FSR support"
-	    	echo "2) Intel: Will install Gamescope with Mangohud and FSR or NIR support"
-	    	echo "3) NVIDIA (9xx+ only): Will install proprietary drivers and Gamescope with Mangohud and NIR support"
-	    	read "?Enter your choice here: " HOLO_GPU_TYPE
-
+	    	#echo "1) AMD: Will install Gamescope with Mangohud and FSR support"
+	    	#echo "2) Intel: Will install Gamescope with Mangohud and FSR or NIR support"
+	    	#echo "3) NVIDIA (9xx+ only): Will install proprietary drivers and Gamescope with Mangohud and NIR support"
+	    	#read "?Enter your choice here: " HOLO_GPU_TYPE
+		HOLO_GPU_TYPE=$(zenity --list --title="Choose your GPU Type" --column="Type" --column="Name" 1 "AMD (Will install Gamescope with Mangohud and FSR support)" \2 "Intel (Will install Gamescope with Mangohud and FSR or NIR support)" \3 "NVIDIA (Will install proprietary drivers and latest gamescope with NIR/FSR and mangohud support)" --width=778 --height=220)
 		if [[ "${HOLO_GPU_TYPE}" == "1" ]]; then
 	        	echo "Installing gamescope for AMD GPUs..."
 			GAMESCOPE_INSTALL=(/usr/bin/pacman --noconfirm -S --needed --overwrite="*" holoiso/vulkan-radeon holoiso/lib32-vulkan-radeon holoiso/gamescope holoiso/mesa holoiso/lib32-mesa)
@@ -383,6 +386,8 @@ full_install() {
 			break
 	    	else
         		echo -e "You have made an invalid selection, please try again...\n"
+				sleep 2
+				clear
 		fi
 	done
 	sleep 1
@@ -415,10 +420,7 @@ full_install() {
 echo "SteamOS 3 Installer"
 echo "Start time: $(date)"
 echo "Please choose installation type:"
-echo "1) barebones: Barebones OS-only installation"
-echo "2) deckperience: Full SteamOS 3 experience"
-read "?Enter your choice here: " HOLO_INSTALL_TYPE
-echo ""
+HOLO_INSTALL_TYPE=$(zenity --list --title="Choose your installation type:" --column="Type" --column="Name" 1 "barebones (Will install base SteamOS 3 root filesystem and hooks)" \2 "deck-experience (Will install full SteamOS 3 including gamescope and Plasma DE)"  --width=700 --height=220)
 if [[ "${HOLO_INSTALL_TYPE}" == "1" ]] || [[ "${HOLO_INSTALL_TYPE}" == "barebones" ]]; then
 	echo "Installing SteamOS, barebones configuration..."
 	base_os_install
