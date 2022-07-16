@@ -267,43 +267,40 @@ base_os_install() {
 	sleep 1
 	clear
 
-	read "?Enter hostname for this installation: " HOLOHOSTNAME
+	HOLOHOSTNAME=$(zenity --entry --title="Account creation" --text "Enter hostname for this installation:")
 	echo ${HOLOHOSTNAME} > ${HOLO_INSTALL_DIR}/etc/hostname
 	# Setup password for root
 	while true; do
-		echo -n "Enter \"root\" password for this installation(will not echo): "
-		read -s ROOTPASS
+		ROOTPASS=$(zenity --forms --title="Account configuration" --text="Set root/system administrator password" --add-password="Password for user root")
 		echo
-		echo -n "Enter \"root\" password for this installation(again): "
-		read -s ROOTPASS_CONF
+		ROOTPASS_CONF=$(zenity --forms --title="Account configuration" --text="Confirm your root password" --add-password="Password for user root")
 		echo
 		if [ $ROOTPASS = $ROOTPASS_CONF ]; then
 			break
 		fi
-		echo "Error: Password does not match."
+		zenity --warning --text "Passwords not match." --width=300
 	done
 	# Create user
 	while true; do
-		read "?Enter username for this installation: " HOLOUSER
+		HOLOUSER=$(zenity --entry --title="Account creation" --text "Enter username for this installation:")
 		if [ $HOLOUSER = "root" ]; then
-			echo "User \"root\" already exists!"
+			zenity --warning --text "User root already exists." --width=300
 		else
 			break
 		fi
 	done
 	# Setup password for user
 	while true; do
-		echo -n "Enter \"$HOLOUSER\" password for this installation(will not echo): "
-		read -s HOLOPASS
+		HOLOPASS=$(zenity --forms --title="Account configuration" --text="Set password for $HOLOUSER" --add-password="Password for user $HOLOUSER")
 		echo
-		echo -n "Enter \"$HOLOUSER\" password for this installation(again): "
-		read -s HOLOPASS_CONF
+		HOLOPASS_CONF=$(zenity --forms --title="Account configuration" --text="Confirm password for $HOLOUSER" --add-password="Password for user $HOLOUSER")
 		echo
 		if [ $HOLOPASS = $HOLOPASS_CONF ]; then
 			break
 		fi
-		echo "Error: Password does not match."
+		zenity --warning --text "Passwords not match." --width=300
 	done
+	
 	echo "\nCreating user ${HOLOUSER}..."
 	echo -e "${ROOTPASS}\n${ROOTPASS}" | arch-chroot ${HOLO_INSTALL_DIR} passwd root
 	arch-chroot ${HOLO_INSTALL_DIR} useradd --create-home ${HOLOUSER}
