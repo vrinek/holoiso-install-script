@@ -350,6 +350,9 @@ full_install() {
     # The actual installation begins here:
 	arch-chroot ${HOLO_INSTALL_DIR} ${CMD_PACMAN_UPDATE}
 	arch-chroot ${HOLO_INSTALL_DIR} ${CMD_PACMAN_INSTALL} holoiso-main holoiso-updateclient wireplumber
+	if [ "$(cat /sys/devices/virtual/dmi/id/product_name)" == "Win600" ]; then
+            arch-chroot ${HOLO_INSTALL_DIR} ${CMD_PACMAN_INSTALL} win600-xpad-dkms
+        fi
 	check_download $? "installing full SteamOS 3"
 	sleep 1
 	clear
