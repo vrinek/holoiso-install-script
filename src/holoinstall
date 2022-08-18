@@ -6,6 +6,11 @@ CMD_PACMAN_UPDATE=(/usr/bin/pacman -Sy)
 CPU_VENDOR=$(cat /proc/cpuinfo | grep 'vendor' | uniq | cut -c 13-)
 SYSTEM_LOCALE="${SYSTEM_LOCALE:-en_US.UTF-8 UTF-8}"
 HOLO_INSTALL_DIR="${HOLO_INSTALL_DIR:-/mnt}"
+IS_WIN600=$(cat /sys/devices/virtual/dmi/id/product_name | grep Win600)
+
+if [ -n "${IS_WIN600}" ]; then
+	GAMEPAD_DRV="win600-xpad-dkms"
+fi
 
 # Internet connectivity check
 sleep 2
@@ -248,11 +253,8 @@ base_os_install() {
 	check_mount $? boot
 	pacstrap ${HOLO_INSTALL_DIR} --disable-download-timeout base base-devel ${UCODE_INSTALL} linux-holoiso linux-holoiso-headers linux-neptune linux-neptune-headers linux-firmware
 	check_download $? "installing base package"
-	echo "Pacstrap complete. Rebuilding kernel modules."
 	sleep 2
 	clear
-	arch-chroot ${HOLO_INSTALL_DIR} depmod -a $(ls /lib/modules)
-	arch-chroot ${HOLO_INSTALL_DIR} mkinitcpio -P
 	if [ $home ]; then
 		mount -t ext4 ${home_partition} ${HOLO_INSTALL_DIR}/home
 		check_mount $? home
@@ -330,7 +332,7 @@ base_os_install() {
 	arch-chroot ${HOLO_INSTALL_DIR} ${CMD_PACMAN_UPDATE}
 	mkdir ${HOLO_INSTALL_DIR}/boot/efi
 	mount -t vfat ${efi_partition} ${HOLO_INSTALL_DIR}/boot/efi
-	arch-chroot ${HOLO_INSTALL_DIR} ${CMD_PACMAN_INSTALL} holoiso/grub efibootmgr inetutils mkinitcpio neofetch networkmanager sddm-wayland
+	arch-chroot ${HOLO_INSTALL_DIR} ${CMD_PACMAN_INSTALL} holoiso/grub breeze-grub efibootmgr inetutils mkinitcpio neofetch networkmanager sddm-wayland
 	arch-chroot ${HOLO_INSTALL_DIR} systemctl enable NetworkManager systemd-timesyncd
 	arch-chroot ${HOLO_INSTALL_DIR} grub-install --target=x86_64-efi --efi-directory=/boot/efi --bootloader-id=holo --removable
 	arch-chroot ${HOLO_INSTALL_DIR} grub-mkconfig -o /boot/grub/grub.cfg
@@ -349,10 +351,7 @@ full_install() {
     sleep 1
     # The actual installation begins here:
 	arch-chroot ${HOLO_INSTALL_DIR} ${CMD_PACMAN_UPDATE}
-	arch-chroot ${HOLO_INSTALL_DIR} ${CMD_PACMAN_INSTALL} holoiso-main holoiso-updateclient wireplumber
-	if [ "$(cat /sys/devices/virtual/dmi/id/product_name)" == "Win600" ]; then
-            arch-chroot ${HOLO_INSTALL_DIR} ${CMD_PACMAN_INSTALL} win600-xpad-dkms
-        fi
+	arch-chroot ${HOLO_INSTALL_DIR} ${CMD_PACMAN_INSTALL} holoiso-main holoiso-updateclient wireplumber holoiso/vulkan-radeon holoiso/lib32-vulkan-radeon ${GAMEPAD_DRV}
 	check_download $? "installing full SteamOS 3"
 	sleep 1
 	clear
