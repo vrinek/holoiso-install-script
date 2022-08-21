@@ -21,7 +21,7 @@ if [ $? -eq 0 ]; then
 	sleep 2
 	clear
 else
-	echo -e "No Internet connection available, exiting\nUse iwctl util to connect Wi-Fi"
+	echo -e "No Internet connection available, exiting...\nUse the iwctl utility to connect Wi-Fi\n(Type iwctl to get an interactive prompt ([iwd]#).\nThen, you can do:\n'device list' to list all th wireless devices available\n'station device scan' to initiate a network scan (where 'device' is the name of your wireless device) (the command will not output anything)\n'station device get-networks' to get the list of available Wi-Fi networks (still, replace 'device' with your wireless device name)\n'station device connect SSID' to connect to a Wi-Fi network, where 'device' is your device name, and 'SSID' is the name of the wireless network\nIf the network requires a passphrase, you will be prompted to enter it\nAlternatively, you can supply it as a command line argument: 'iwctl --passphrase passphrase station device connect SSID' (while not in the interactive iwd prompt)"
 	echo 'Press any key to exit...'; read -k1 -s
 	exit
 fi
