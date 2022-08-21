@@ -21,7 +21,7 @@ if [ $? -eq 0 ]; then
 	sleep 2
 	clear
 else
-	echo -e "No Internet connection available, exiting\nUse iwctl util to connect WiFi"
+	echo -e "No Internet connection available, exiting\nUse iwctl util to connect Wi-Fi"
 	echo 'Press any key to exit...'; read -k1 -s
 	exit
 fi
@@ -109,7 +109,7 @@ xargs -0 zenity --list --width=600 --height=512 --title="Select disk" --text="Se
 			# Umount twice to fully umount the broken install of steam os 3 before installing.
 			umount $INSTALLDEVICE* > /dev/null 2>&1
 			umount $INSTALLDEVICE* > /dev/null 2>&1
-			if zenity --question --text "WARNING: The following drive is going to be erased fully. ALL DATA ON DRIVE ${DEVICE} WILL BE LOST! \n\n$(lsblk -o NAME,MAJ:MIN,RM,SIZE,RO,TYPE,VENDOR,MODEL,SERIAL,MOUNTPOINT ${DEVICE} | sed "1d")\n\nErase ${DEVICE} and begin installation?" --width=700
+			if zenity --question --text "WARNING: The following drive is going to be fully erased. ALL DATA ON DRIVE ${DEVICE} WILL BE LOST! \n\n$(lsblk -o NAME,MAJ:MIN,RM,SIZE,RO,TYPE,VENDOR,MODEL,SERIAL,MOUNTPOINT ${DEVICE} | sed "1d")\n\nErase ${DEVICE} and begin installation?" --width=700
 			then
 				echo "\nWiping partitions..."
 				sfdisk --delete ${DEVICE}
@@ -295,9 +295,9 @@ base_os_install() {
 		elif [ -z $HOLOUSER ]; then
 			zenity --warning --text "Please create a user!" --width=300
 		elif [ ${#HOLOUSER} -gt 32 ]; then
-			zenity --warning --text "Username must not exceed 32 characters long!" --width=400
+			zenity --warning --text "Username length must not exceed 32 characters!" --width=400
 		elif [[ ! $HOLOUSER =~ $NAME_REGEX ]]; then
-			zenity --warning --text "Invalid username \"$HOLOUSER\"\nUsername need to follow these rules:\n\n- Must start with a lowercase letter.\n- May only contain lowercase letters, digits, hyphens, and underscores." --width=500
+			zenity --warning --text "Invalid username \"$HOLOUSER\"\nUsername needs to follow these rules:\n\n- Must start with a lowercase letter.\n- May only contain lowercase letters, digits, hyphens, and underscores." --width=500
 		else
 			break
 		fi
@@ -315,7 +315,7 @@ base_os_install() {
 		if [ $HOLOPASS = $HOLOPASS_CONF ]; then
 			break
 		fi
-		zenity --warning --text "Passwords not match." --width=300
+		zenity --warning --text "Passwords do not match." --width=300
 	done
 	
 	echo "\nCreating user ${HOLOUSER}..."
