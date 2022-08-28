@@ -369,14 +369,11 @@ full_install() {
 			break
 	    	elif [[ "${HOLO_GPU_TYPE}" == "2" ]]; then
 	        	echo "Installing gamescope for Intel GPUs..."
-			sed -i 's/linux-firmware/linux-firmware gamescope vulkan-intel lib32-vulkan-intel mesa lib32-mesa/g' ${HOLO_INSTALL_DIR}/etc/pacman.conf
-	        	GAMESCOPE_INSTALL=(/usr/bin/pacman --noconfirm -S --needed --overwrite="*" extra/vulkan-intel multilib/lib32-vulkan-intel extra/mesa multilib/lib32-mesa holo/gamescope)
+	        	GAMESCOPE_INSTALL=(/usr/bin/pacman --noconfirm -S --needed --overwrite="*" holoiso/vulkan-intel holoiso/lib32-vulkan-intel holoiso/mesa holoiso/lib32-mesa holoiso/gamescope)
 			break
 	    	elif [[ "${HOLO_GPU_TYPE}" == "3" ]]; then
 	        	echo "Installing gamescope for NVIDIA GPUs..."
 	        	GAMESCOPE_INSTALL=(/usr/bin/pacman --noconfirm -S --needed --overwrite="*" holoiso/nvidia-utils holoiso/lib32-nvidia-utils holoiso/nvidia-dkms holoiso/opencl-nvidia holoiso/gamescope)
-			sed -i 's/splash/splash nvidia-drm.modeset=1/g' ${HOLO_INSTALL_DIR}/etc/default/grub
-			arch-chroot ${HOLO_INSTALL_DIR} grub-mkconfig -o /boot/grub/grub.cfg
 			break
 	    	else
         		echo -e "You have made an invalid selection, please try again...\n"
