@@ -1,15 +1,41 @@
 #!/bin/zsh
 # HoloISO Installer v2
 # This defines all of the current variables.
-CMD_PACMAN_INSTALL=(/usr/bin/pacman --noconfirm -S --needed --disable-download-timeout --overwrite="*")
+CMD_PACMAN_INSTALL=(/usr/bin/pacman --noconfirm -S --needed --overwrite="*")
 CMD_PACMAN_UPDATE=(/usr/bin/pacman -Sy)
 CPU_VENDOR=$(cat /proc/cpuinfo | grep 'vendor' | uniq | cut -c 13-)
 SYSTEM_LOCALE="${SYSTEM_LOCALE:-en_US.UTF-8 UTF-8}"
 HOLO_INSTALL_DIR="${HOLO_INSTALL_DIR:-/mnt}"
 IS_WIN600=$(cat /sys/devices/virtual/dmi/id/product_name | grep Win600)
+IS_STEAMDECK=$(cat /sys/devices/virtual/dmi/id/product_name | grep Jupiter)
+IS_BETA=$(cat /etc/pacman.conf | grep -e "jupiter-main")
+    if [ -n "${IS_BETA}" ]; then
+        echo "holy shit dude touch grass your system is broken and if you fixed it you probably didn't come outside for last 10 years"
+	    UPD_BRANCH_JUPITER="jupiter-main"
+	    UPD_BRANCH_OS_CORE="holo-main"
+	    UPD_BRANCH_ARCH_CORE="core-main"
+	    UPD_BRANCH_ARCH_EXTRA="extra-main"
+	    UPD_BRANCH_ARCH_MULTILIB="multilib-main"
+	    UPD_BRANCH_OS="holoiso"
+    else
+	    UPD_BRANCH_JUPITER="jupiter"
+	    UPD_BRANCH_OS_CORE="holo"
+	    UPD_BRANCH_ARCH_CORE="core"
+	    UPD_BRANCH_ARCH_EXTRA="extra"
+	    UPD_BRANCH_ARCH_MULTILIB="multilib"
+	    UPD_BRANCH_OS="holoiso-stable"
+    fi
 
 if [ -n "${IS_WIN600}" ]; then
 	GAMEPAD_DRV="win600-xpad-dkms"
+	INST_MSG1=$(echo "You're running this on Anbernic Win600. A suitable gamepad driver will be installed.")
+fi
+
+if [ -n "${IS_STEAMDECK}" ]; then
+	FIRMWARE_INSTALL="linux-firmware-neptune"
+	INST_MSG1=$(echo "You're running this on a Steam Deck. linux-firmware-neptune will be installed to ensure maximum kernel-side compatibility.")
+else
+	FIRMWARE_INSTALL="${UPD_BRANCH_OS}/linux-firmware"
 fi
 
 # Internet connectivity check
@@ -109,6 +135,7 @@ xargs -0 zenity --list --width=600 --height=512 --title="Select disk" --text="Se
 			# Umount twice to fully umount the broken install of steam os 3 before installing.
 			umount $INSTALLDEVICE* > /dev/null 2>&1
 			umount $INSTALLDEVICE* > /dev/null 2>&1
+			$INST_MSG1
 			if zenity --question --text "WARNING: The following drive is going to be fully erased. ALL DATA ON DRIVE ${DEVICE} WILL BE LOST! \n\n$(lsblk -o NAME,MAJ:MIN,RM,SIZE,RO,TYPE,VENDOR,MODEL,SERIAL,MOUNTPOINT ${DEVICE} | sed "1d")\n\nErase ${DEVICE} and begin installation?" --width=700
 			then
 				echo "\nWiping partitions..."
@@ -132,7 +159,7 @@ xargs -0 zenity --list --width=600 --height=512 --title="Select disk" --text="Se
 				exit 1
 				echo 'Press any key to exit...'; read -k1 -s
 			fi
-
+				$INST_MSG1
 			if zenity --question --text "HoloISO will be installed on the following free (unallocated) space.\nDoes this look reasonable?\n$(sudo parted ${DEVICE} print free | tail -n2 | grep "Free Space")" --width=500
 			then
         		echo "\nBeginning installation..."
@@ -251,7 +278,7 @@ base_os_install() {
 	check_mount $? root
 	${CMD_MOUNT_BOOT}
 	check_mount $? boot
-	pacstrap ${HOLO_INSTALL_DIR} --disable-download-timeout base base-devel ${UCODE_INSTALL} core-main/linux core-main/linux-headers linux-neptune linux-neptune-headers linux-firmware
+	pacstrap ${HOLO_INSTALL_DIR} --disable-download-timeout base base-devel ${UCODE_INSTALL} linux-neptune linux-neptune-headers ${FIRMWARE_INSTALL}
 	check_download $? "installing base package"
 	sleep 2
 	clear
@@ -333,7 +360,7 @@ base_os_install() {
 	arch-chroot ${HOLO_INSTALL_DIR} ${CMD_PACMAN_UPDATE}
 	mkdir ${HOLO_INSTALL_DIR}/boot/efi
 	mount -t vfat ${efi_partition} ${HOLO_INSTALL_DIR}/boot/efi
-	arch-chroot ${HOLO_INSTALL_DIR} ${CMD_PACMAN_INSTALL} holoiso/grub breeze-grub efibootmgr inetutils mkinitcpio neofetch networkmanager sddm-wayland
+	arch-chroot ${HOLO_INSTALL_DIR} ${CMD_PACMAN_INSTALL} ${UPD_BRANCH_OS}/grub breeze-grub efibootmgr inetutils mkinitcpio neofetch networkmanager sddm-wayland
 	arch-chroot ${HOLO_INSTALL_DIR} systemctl enable NetworkManager systemd-timesyncd
 	arch-chroot ${HOLO_INSTALL_DIR} grub-install --target=x86_64-efi --efi-directory=/boot/efi --bootloader-id=holo --removable
 	arch-chroot ${HOLO_INSTALL_DIR} grub-mkconfig -o /boot/grub/grub.cfg
@@ -366,15 +393,15 @@ full_install() {
 		HOLO_GPU_TYPE=$(zenity --list --title="Choose your GPU Type" --column="Type" --column="Name" 1 "AMD (Will install Gamescope with Mangohud and FSR support)" \2 "Intel (Will install Gamescope with Mangohud and FSR or NIR support)" \3 "NVIDIA (Will install proprietary drivers and latest gamescope with NIR/FSR and mangohud support)" --width=778 --height=220)
 		if [[ "${HOLO_GPU_TYPE}" == "1" ]]; then
 	        	echo "Installing gamescope for AMD GPUs..."
-			GAMESCOPE_INSTALL=(/usr/bin/pacman --noconfirm -S --needed --overwrite="*" vulkan-radeon lib32-vulkan-radeon holoiso/gamescope mesa lib32-mesa)
+			GAMESCOPE_INSTALL=(/usr/bin/pacman --noconfirm -S --needed --overwrite="*" vulkan-radeon lib32-vulkan-radeon ${UPD_BRANCH_OS}/gamescope mesa lib32-mesa)
 			break
 	    	elif [[ "${HOLO_GPU_TYPE}" == "2" ]]; then
 	        	echo "Installing gamescope for Intel GPUs..."
-	        	GAMESCOPE_INSTALL=(/usr/bin/pacman --noconfirm -S --needed --overwrite="*" holoiso/vulkan-intel holoiso/lib32-vulkan-intel mesa lib32-mesa holoiso/gamescope)
+	        	GAMESCOPE_INSTALL=(/usr/bin/pacman --noconfirm -S --needed --overwrite="*" ${UPD_BRANCH_OS}/vulkan-intel ${UPD_BRANCH_OS}/lib32-vulkan-intel mesa lib32-mesa ${UPD_BRANCH_OS}/gamescope)
 			break
 	    	elif [[ "${HOLO_GPU_TYPE}" == "3" ]]; then
 	        	echo "Installing gamescope for NVIDIA GPUs..."
-	        	GAMESCOPE_INSTALL=(/usr/bin/pacman --noconfirm -S --needed --overwrite="*" holoiso/nvidia-utils holoiso/lib32-nvidia-utils holoiso/nvidia-dkms holoiso/opencl-nvidia holoiso/gamescope)
+	        	GAMESCOPE_INSTALL=(/usr/bin/pacman --noconfirm -S --needed --overwrite="*" ${UPD_BRANCH_OS}/nvidia-utils ${UPD_BRANCH_OS}/lib32-nvidia-utils ${UPD_BRANCH_OS}/nvidia-dkms ${UPD_BRANCH_OS}/opencl-nvidia ${UPD_BRANCH_OS}/gamescope)
 			break
 	    	else
         		echo -e "You have made an invalid selection, please try again...\n"
@@ -397,13 +424,17 @@ full_install() {
 	arch-chroot ${HOLO_INSTALL_DIR} systemctl enable cups bluetooth sddm holoiso-reboot-tracker
 	arch-chroot ${HOLO_INSTALL_DIR} usermod -a -G rfkill ${HOLOUSER}
 	arch-chroot ${HOLO_INSTALL_DIR} usermod -a -G wheel ${HOLOUSER}
-	arch-chroot ${HOLO_INSTALL_DIR} sed -i "s/steamdeck_stable/steamdeck_publicbeta" /usr/bin/steam
+	arch-chroot ${HOLO_INSTALL_DIR} sed -i 's/steamdeck_stable/steamdeck_publicbeta/g' /usr/bin/steam
 	arch-chroot ${HOLO_INSTALL_DIR} sudo -u ${HOLOUSER} steam
 	arch-chroot ${HOLO_INSTALL_DIR} ${CMD_PACMAN_INSTALL} flatpak packagekit-qt5 rsync unzip vim
 	check_download $? "installing flatpak"
 	arch-chroot ${HOLO_INSTALL_DIR} flatpak remote-add --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
 	check_download $? "updating flatpak"
 	arch-chroot ${HOLO_INSTALL_DIR} echo "recoveryinit" > /root/.bashrc
+	echo "Installing secondary kernels"
+	arch-chroot ${HOLO_INSTALL_DIR} ${CMD_PACMAN_INSTALL} linux-holoiso linux-holoiso-headers
+	check_download $? "installing secondary kernels"
+	arch-chroot ${HOLO_INSTALL_DIR} grub-mkconfig -o /boot/grub/grub.cfg
 	sleep 1
 	clear
 }
