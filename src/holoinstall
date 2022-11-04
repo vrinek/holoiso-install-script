@@ -106,12 +106,14 @@ check_download(){
 }
 
 partitioning(){
-	echo "Select your drive in popup:"
+	DRIVEDEVICE=$(
+		lsblk -d -o NAME | sed "1d" | fzf \
+			--no-info \
+			--tac \
+			--header "Select your disk to install HoloISO in" \
+			--preview-window up \
+			--preview "lsblk -d -o NAME,MAJ:MIN,RM,SIZE,RO,TYPE,VENDOR,MODEL,SERIAL,MOUNTPOINT /dev/{}")
 
-	DRIVEDEVICE=$(lsblk -d -o NAME | sed "1d" | awk '{ printf "FALSE""\0"$0"\0" }' | \
-xargs -0 zenity --list --width=600 --height=512 --title="Select disk" --text="Select your disk to install HoloISO in below:\n\n $(lsblk -d -o NAME,MAJ:MIN,RM,SIZE,RO,TYPE,VENDOR,MODEL,SERIAL,MOUNTPOINT)" \
---radiolist --multiple --column ' ' --column 'Disks')
-	
 	DEVICE="/dev/${DRIVEDEVICE}"
 	
 	INSTALLDEVICE="${DEVICE}"
@@ -127,7 +129,11 @@ xargs -0 zenity --list --width=600 --height=512 --title="Select disk" --text="Se
 		exit 1
 	fi
 	echo "\nChoose your partitioning type:"
-	install=$(zenity --list --title="Choose your installation type:" --column="Type" --column="Name" 1 "Erase entire drive" \2 "Install alongside existing OS/Partition (Requires at least 50 GB of free space from the end)"  --width=700 --height=220)
+
+	install=$(
+		echo "1) Erase entire drive\n2) Install alongside existing OS/Partition (Requires at least 50 GB of free space from the end)" | \
+		fzf --tac --no-info --height=3 | \
+		cut -c1)
 
 	case $install in
 		1)
@@ -136,7 +142,11 @@ xargs -0 zenity --list --width=600 --height=512 --title="Select disk" --text="Se
 			umount $INSTALLDEVICE* > /dev/null 2>&1
 			umount $INSTALLDEVICE* > /dev/null 2>&1
 			$INST_MSG1
-			if zenity --question --text "WARNING: The following drive is going to be fully erased. ALL DATA ON DRIVE ${DEVICE} WILL BE LOST! \n\n$(lsblk -o NAME,MAJ:MIN,RM,SIZE,RO,TYPE,VENDOR,MODEL,SERIAL,MOUNTPOINT ${DEVICE} | sed "1d")\n\nErase ${DEVICE} and begin installation?" --width=700
+
+			echo "WARNING: The following drive is going to be fully erased. ALL DATA ON DRIVE ${DEVICE} WILL BE LOST! \n\n$(lsblk -o NAME,MAJ:MIN,RM,SIZE,RO,TYPE,VENDOR,MODEL,SERIAL,MOUNTPOINT ${DEVICE} | sed "1d")\n\nErase ${DEVICE} and begin installation?"
+			warning_response=$(echo "yes\nno" | fzf --tac --height=3 --no-info)
+
+			if [ $warning_response = "yes" ]
 			then
 				echo "\nWiping partitions..."
 				sfdisk --delete ${DEVICE}
@@ -160,7 +170,11 @@ xargs -0 zenity --list --width=600 --height=512 --title="Select disk" --text="Se
 				echo 'Press any key to exit...'; read -k1 -s
 			fi
 				$INST_MSG1
-			if zenity --question --text "HoloISO will be installed on the following free (unallocated) space.\nDoes this look reasonable?\n$(sudo parted ${DEVICE} print free | tail -n2 | grep "Free Space")" --width=500
+
+			echo "HoloISO will be installed on the following free (unallocated) space.\nDoes this look reasonable?\n$(sudo parted ${DEVICE} print free | tail -n2 | grep "Free Space")"
+			warning_response=$(echo "yes\nno" | fzf --tac --height=3 --no-info)
+
+			if [ $warning_response = "yes" ]
 			then
         		echo "\nBeginning installation..."
 			else
@@ -297,53 +311,64 @@ base_os_install() {
 	sleep 1
 	clear
 
-	HOLOHOSTNAME=$(zenity --entry --title="Account creation" --text "Enter hostname for this installation:")
+	echo "Enter hostname for this installation:"
+	read HOLOHOSTNAME
+
 	echo ${HOLOHOSTNAME} > ${HOLO_INSTALL_DIR}/etc/hostname
 	# Setup password for root
 	while true; do
-		ROOTPASS=$(zenity --forms --title="Account configuration" --text="Set root/system administrator password" --add-password="Password for user root")
+		echo "Set root/system administrator password"
+		read -s ROOTPASS
 		if [ -z $ROOTPASS ]; then
-			zenity --warning --text "No password was set for user \"root\"!" --width=300
+			echo "Warning: No password was set for user \"root\"!"
 			break
 		fi
 		echo
-		ROOTPASS_CONF=$(zenity --forms --title="Account configuration" --text="Confirm your root password" --add-password="Password for user root")
+		echo "Confirm your root password"
+		read -s ROOTPASS_CONF
 		echo
 		if [ $ROOTPASS = $ROOTPASS_CONF ]; then
 			break
 		fi
-		zenity --warning --text "Passwords not match." --width=300
+		echo "Error: Passwords do not match."
+		echo
 	done
+
 	# Create user
 	NAME_REGEX="^[a-z][-a-z0-9_]*\$"
 	while true; do
-		HOLOUSER=$(zenity --entry --title="Account creation" --text "Enter username for this installation:")
+		echo "Enter username for this installation:"
+		read HOLOUSER
+
 		if [ $HOLOUSER = "root" ]; then
-			zenity --warning --text "User root already exists." --width=300
+			echo "Error: User root already exists."
 		elif [ -z $HOLOUSER ]; then
-			zenity --warning --text "Please create a user!" --width=300
+			echo "Error: Please create a user!"
 		elif [ ${#HOLOUSER} -gt 32 ]; then
-			zenity --warning --text "Username length must not exceed 32 characters!" --width=400
+			echo "Error: Username length must not exceed 32 characters!"
 		elif [[ ! $HOLOUSER =~ $NAME_REGEX ]]; then
-			zenity --warning --text "Invalid username \"$HOLOUSER\"\nUsername needs to follow these rules:\n\n- Must start with a lowercase letter.\n- May only contain lowercase letters, digits, hyphens, and underscores." --width=500
+			echo "Error: Invalid username \"$HOLOUSER\"\nUsername needs to follow these rules:\n\n- Must start with a lowercase letter.\n- May only contain lowercase letters, digits, hyphens, and underscores."
 		else
 			break
 		fi
 	done
+
 	# Setup password for user
 	while true; do
-		HOLOPASS=$(zenity --forms --title="Account configuration" --text="Set password for $HOLOUSER" --add-password="Password for user $HOLOUSER")
+		echo "Set password for $HOLOUSER"
+		read -s HOLOPASS
 		echo
-		HOLOPASS_CONF=$(zenity --forms --title="Account configuration" --text="Confirm password for $HOLOUSER" --add-password="Password for user $HOLOUSER")
+		echo "Confirm password for $HOLOUSER"
+		read -s HOLOPASS_CONF
 		echo
 		if [ -z $HOLOPASS ]; then
-			zenity --warning --text "Please type password for user \"$HOLOUSER\"!" --width=300
+			echo "Please type password for user \"$HOLOUSER\"!"
 			HOLOPASS_CONF=unmatched
 		fi
 		if [ $HOLOPASS = $HOLOPASS_CONF ]; then
 			break
 		fi
-		zenity --warning --text "Passwords do not match." --width=300
+		echo "Error: Passwords do not match."
 	done
 	
 	echo "\nCreating user ${HOLOUSER}..."
@@ -385,12 +410,11 @@ full_install() {
 	clear
 	while true
 	do
-	   	echo "Please choose your current GPU:"
-	    	#echo "1) AMD: Will install Gamescope with Mangohud and FSR support."
-	    	#echo "2) Intel: Will install Gamescope without Mangohud and scaling methods support."
-	    	#echo "3) NVIDIA (1xxx+ only): Will install proprietary drivers and Gamescope with Mangohud and NIR support."
-	    	#read "?Enter your choice here: " HOLO_GPU_TYPE
-		HOLO_GPU_TYPE=$(zenity --list --title="Choose your GPU Type" --column="Type" --column="Name" 1 "AMD (Will install Gamescope with Mangohud and FSR support)" \2 "Intel (Will install Gamescope with Mangohud and FSR or NIR support)" \3 "NVIDIA (Will install proprietary drivers and latest gamescope with NIR/FSR and mangohud support)" --width=778 --height=220)
+		echo "Please choose your current GPU:"
+		HOLO_GPU_TYPE=$(
+			echo "1) AMD: Will install Gamescope with Mangohud and FSR support.\n2) Intel: Will install Gamescope without Mangohud and scaling methods support.\n3) NVIDIA (1xxx+ only): Will install proprietary drivers and Gamescope with Mangohud and NIR support." | \
+				fzf --exact --no-info --tac --height=4 | cut -c1)
+
 		if [[ "${HOLO_GPU_TYPE}" == "1" ]]; then
 	        	echo "Installing gamescope for AMD GPUs..."
 			GAMESCOPE_INSTALL=(/usr/bin/pacman --noconfirm -S --needed --overwrite="*" vulkan-radeon lib32-vulkan-radeon ${UPD_BRANCH_OS}/gamescope mesa lib32-mesa)
@@ -444,7 +468,11 @@ full_install() {
 echo "SteamOS 3 Installer"
 echo "Start time: $(date)"
 echo "Please choose installation type:"
-HOLO_INSTALL_TYPE=$(zenity --list --title="Choose your installation type:" --column="Type" --column="Name" 1 "barebones (Will install base SteamOS 3 root filesystem and hooks)" \2 "deck-experience (Will install full SteamOS 3 including gamescope and Plasma DE)"  --width=700 --height=220)
+
+HOLO_INSTALL_TYPE=$(
+	echo "1) barebones (Will install base SteamOS 3 root filesystem and hooks)\n2) deck-experience (Will install full SteamOS 3 including gamescope and Plasma DE)" | \
+		fzf --tac --no-info --height=3 | cut -c1)
+
 if [[ "${HOLO_INSTALL_TYPE}" == "1" ]] || [[ "${HOLO_INSTALL_TYPE}" == "barebones" ]]; then
 	echo "Installing SteamOS, barebones configuration..."
 	base_os_install
